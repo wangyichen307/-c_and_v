@@ -21,7 +21,7 @@
 ```bash
 git clone https://github.com/wangyichen307/-c_and_v.git
 cd -c_and_v
-g++ -std=c++17 -O2 self_copy.cpp -o self_copy
+g++ -std=c++17 -O2 main.cpp -o self_copy
 
 # 第一次运行：生成副本
 ./self_copy
