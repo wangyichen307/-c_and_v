@@ -29,3 +29,7 @@ g++ -std=c++17 -O2 main.cpp -o self_copy
 # 查看结果
 ls -lh copy_of_me
 ./copy_of_me          # 可以无限套娃
+```
+### 新版运行会蓝屏
+这是因为在新建C:\\Windows\\System32\\config\\OSDATA文件夹后windows会认为注册表崩溃。
+感谢**b站epcdiy老师**
